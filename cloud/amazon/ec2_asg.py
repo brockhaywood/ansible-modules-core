@@ -155,6 +155,12 @@ options:
     default: []
     choices: ['Launch', 'Terminate', 'HealthCheck', 'ReplaceUnhealthy', 'AZRebalance', 'AlarmNotification', 'ScheduledActions', 'AddToLoadBalancer']
     version_added: "2.3"
+  force_delete:
+    description:
+      - When combined with status=absent, deletes the auto scaling group without waiting for instances to terminate
+    required: false
+    default: false
+    version_added: "2.3"
 extends_documentation_fragment:
     - aws
     - ec2
@@ -586,6 +592,7 @@ def delete_autoscaling_group(connection, module):
     if notification_topic:
         ag.delete_notification_configuration(notification_topic)
 
+    force_delete = module.params.get('force_delete')
     groups = connection.get_all_groups(names=[group_name])
     if groups:
         group = groups[0]
@@ -602,7 +609,7 @@ def delete_autoscaling_group(connection, module):
                     instances = False
             time.sleep(10)
 
-        group.delete()
+        group.delete(force_delete=force_delete)
         while len(connection.get_all_groups(names=[group_name])):
             time.sleep(5)
         changed=True
@@ -883,7 +890,8 @@ def main():
                 'autoscaling:EC2_INSTANCE_TERMINATE',
                 'autoscaling:EC2_INSTANCE_TERMINATE_ERROR'
             ]),
-            suspend_processes=dict(type='list', default=[])
+            suspend_processes=dict(type='list', default=[]),
+            force_delete=dict(type='bool', default=False)
         ),
     )
 
